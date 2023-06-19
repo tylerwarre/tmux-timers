@@ -2,16 +2,13 @@
 # ______________________________________________________________| locals |__ ;
 
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-POMODORO_MINS_FILE="$CURRENT_DIR/scripts/user_mins.txt"
-POMODORO_BREAK_MINS_FILE="$CURRENT_DIR/scripts/user_break_mins.txt"
+TIMER_MINS_FILE="$CURRENT_DIR/scripts/user_mins.txt"
 
-default_start_pomodoro="p"
-start_pomodoro="@pomodoro_start"
-default_cancel_pomodoro="P"
-cancel_pomodoro="@pomodoro_cancel"
+default_start_timer="t"
+start_timer="@timer_start"
 
-pomodoro_status="#($CURRENT_DIR/scripts/pomodoro.sh)"
-pomodoro_status_interpolation_string="\#{pomodoro_status}"
+timer_status="#($CURRENT_DIR/scripts/timers.sh)"
+timer_status_interpolation_string="\#{timer_status}"
 
 # _____________________________________________________________| methods |__ ;
 
@@ -33,26 +30,17 @@ sync_timers() {
 }
 
 set_bindings() {
-	start_binding=$(get_tmux_option "$start_pomodoro" "$default_start_pomodoro")
+	start_binding=$(get_tmux_option "$start_timer" "$default_start_timer")
 	export start_binding
 
 	for key in $start_binding; do
-		tmux bind-key "$key" run-shell "$CURRENT_DIR/scripts/pomodoro.sh toggle"
-		tmux bind-key "C-$key" run-shell "$CURRENT_DIR/scripts/pomodoro.sh menu"
-		tmux bind-key "M-$key" run-shell "$CURRENT_DIR/scripts/pomodoro.sh custom"
-	done
-
-	cancel_binding=$(get_tmux_option "$cancel_pomodoro" "$default_cancel_pomodoro")
-	export cancel_binding
-
-	for key in $cancel_binding; do
-		tmux bind-key "$key" run-shell "$CURRENT_DIR/scripts/pomodoro.sh toggle"
+		tmux bind-key "$key" run-shell "$CURRENT_DIR/scripts/menu.sh"
 	done
 }
 
 do_interpolation() {
 	local string="$1"
-	local interpolated="${string/$pomodoro_status_interpolation_string/$pomodoro_status}"
+	local interpolated="${string/$timer_status_interpolation_string/$timer_status}"
 	echo "$interpolated"
 }
 
@@ -69,6 +57,9 @@ update_tmux_option() {
 }
 
 main() {
+	echo -n '' > $DEBUG_FILE
+	debug "$(date): init" "$DEBUG_FILE"
+
 	sync_timers
 	set_bindings
 	update_tmux_option "status-right"

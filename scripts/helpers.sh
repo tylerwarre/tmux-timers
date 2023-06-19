@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+DEBUG_FILE=/tmp/timer-debug.log
 
 get_tmux_option() {
 	local option=$1
@@ -14,7 +15,7 @@ get_tmux_option() {
 set_tmux_option() {
 	local option="$1"
 	local value="$2"
-	tmux set-option -gq "$option" "$value"
+	tmux set-option -g "$option" "$value"
 }
 
 read_file() {
@@ -36,5 +37,14 @@ remove_file() {
 write_to_file() {
 	local data=$1
 	local file=$2
-	echo "$data" >"$file"
+	echo "$data" > "$file"
+}
+
+debug() {
+	debugging=$(get_tmux_option "@timers_debug" false)
+	if [ "$debugging" = true ]; then
+		local data=$1
+		local file=$2
+		echo "$data" >> "$file"
+	fi
 }
