@@ -115,13 +115,22 @@ timer_toggle() {
 }
 
 timer_start() {
-	clean_env
 	mkdir -p $TIMER_DIR
-	debug "$(date): start" "$DEBUG_FILE"
-	write_to_file "$(get_seconds)" "$TIMER_FILE"
-	write_to_file "working" "$TIMER_STATUS_FILE"
+	timer_start_time=$(read_file "$TIMER_FILE")
+	export timer_start_time
 
-	send_notification "🕓 Timer started!" "Your Timer is underway"
+	debug "$(date): start" "$DEBUG_FILE"
+	if [ $timer_start_completed == "true" ] && [ "$timer_start_time" -eq -1 ]; then
+		clean_env
+		write_to_file "done" "$TIMER_STATUS_FILE"
+		write_to_file "$((get_seconds + $(minutes_to_seconds timer_duration_minutes)))" "$TIMER_FILE"
+	else
+		clean_env
+		write_to_file "working" "$TIMER_STATUS_FILE"
+		write_to_file "$(get_seconds)" "$TIMER_FILE"
+	fi
+
+	send_notification "🕓 $TIMER_SELECTION" "Your Timer is underway"
 	if_inside_tmux && tmux refresh-client -S
 	return 0
 }
@@ -130,7 +139,7 @@ timer_cancel() {
 	clean_env
 	debug "$(date): cancel" "$DEBUG_FILE"
 	if [[ -z $1 ]]; then
-		send_notification "🍅 Timer cancelled!" "Your Timer has been cancelled"
+		send_notification "🕓 $TIMER_SELECTION" "Your Timer has been cancelled"
 	fi
 	if_inside_tmux && tmux refresh-client -S
 	return 0
@@ -156,25 +165,61 @@ timer_status() {
 		export current_time
 
 		local difference=$((current_time - timer_start_time))
+		# Timer workflow
+		if [ $timer_type == "timer" ]; then
+			if [ "$timer_start_time" -eq -1 ]; then
+				debug "idle" "$DEBUG_FILE"
+				status="${status}"
+			elif [ $difference -ge "$(minutes_to_seconds "$timer_duration_minutes")" ]; then
+				debug "done" "$DEBUG_FILE"
+				if [ "$timer_status" == 'working' ]; then
+					send_notification "🕑 $TIMER_SELECTION" "Password spray read!"
+					write_to_file "done" "$TIMER_STATUS_FILE"
+				fi
 
-		if [ "$timer_start_time" -eq -1 ]; then
-			debug "idle" "$DEBUG_FILE"
-			status="${status}"
-		elif [ $difference -ge "$(minutes_to_seconds "$timer_duration_minutes")" ]; then
-			debug "done" "$DEBUG_FILE"
-			if [ "$timer_status" == 'working' ]; then
-				send_notification "🍅 Timer completed!" "Your Timer has now completed"
-				write_to_file "done" "$TIMER_STATUS_FILE"
+				status="${status} $timer_complete "
+			else
+				debug "working" "$DEBUG_FILE"
+				timer_duration_secs=$(minutes_to_seconds "$timer_duration_minutes")
+				time_left_formatted=$(format_seconds $((timer_duration_secs - difference)))
+
+				status="${status}$timer_on $time_left_formatted "
 			fi
-
-			#printf "$(get_tmux_option "$timer_complete" "$timer_complete_default")"
-			status="${status} $timer_complete "
+		# Pomdoro workflow
 		else
-			debug "working" "$DEBUG_FILE"
-			timer_duration_secs=$(minutes_to_seconds "$timer_duration_minutes")
-			time_left_formatted=$(format_seconds $((timer_duration_secs - difference)))
-			#printf "$(get_tmux_option "$timer_on" "$timer_on_default")$time_left_formatted "
-			status="${status}$timer_on $time_left_formatted "
+			if [ "$timer_start_time" -eq -1 ]; then
+				debug "idle" "$DEBUG_FILE"
+				status="${status}"
+			elif [ $difference -ge "$(minutes_to_seconds $(($timer_duration_minutes + $timer_break_minutes)))" ]; then
+				timer_start_time=-1
+				status="${status}"
+				if [ "$timer_status" == 'on_break' ]; then
+					send_notification "🕑 $TIMER_SELECTION" "Get back to work"
+					write_to_file "break_complete" "$TIMER_STATUS_FILE"
+					if [ "$timer_auto_restart" = true ]; then
+						timer_start
+					else
+						# Cancel the pomodoro and silence any notifications
+						timer_cancel true
+					fi
+				fi
+			elif [ $difference -ge "$(minutes_to_seconds "$timer_duration_minutes")" ]; then
+				if [ "$timer_status" == "working" ]; then
+					send_notification "🕑 $TIMER_SELECTION" "Take a quick break!"
+					write_to_file "on_break" "$TIMER_STATUS_FILE"
+				fi
+
+				timer_duration_secs=$(minutes_to_seconds "$timer_duration_minutes")
+				break_duration_seconds=$(minutes_to_seconds "$timer_break_minutes")
+				time_left_seconds=$((-(difference - timer_duration_secs - break_duration_seconds)))
+				time_left_formatted=$(format_seconds $time_left_seconds)
+
+				status="${status}$timer_complete $time_left_formatted "
+			else
+				timer_duration_secs=$(minutes_to_seconds "$timer_duration_minutes")
+				time_left_formatted=$(format_seconds $((timer_duration_secs - difference)))
+				status="${status}$timer_on $time_left_formatted "
+			fi
 		fi
 		cnt=$((cnt+1))
 	done
