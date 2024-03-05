@@ -67,28 +67,31 @@ if_inside_tmux() {
 }
 
 send_notification() {
-	debug "$(date): notification" "$DEBUG_FILE"
-	if [ "$timer_notifications" == 'true' ]; then
-		local title=$1
-		local message=$2
-		sound=$(get_sound)
-		export sound
-		case "$OSTYPE" in
-		linux* | *bsd*)
-			notify-send -t 8000 "$title" "$message"
-      if [[ "$sound" == "on" ]]; then
-        beep -D 1500
-      fi
-			;;
-		darwin*)
-			if [[ "$sound" == "off" ]]; then
-				osascript -e 'display notification "'"$message"'" with title "'"$title"'"'
-			else
-				osascript -e 'display notification "'"$message"'" with title "'"$title"'" sound name "'"$sound"'"'
-			fi
-			;;
-		esac
-	fi
+    debug "$(date): notification" "$DEBUG_FILE"
+    if [ "$timer_notifications" == 'true' ]; then
+        local title=$1
+        local message=$2
+        case "$OSTYPE" in
+            linux* | *bsd*)
+                if [[ $(uname -r) =~ "WSL" ]]; then
+                    tmux display-popup -T "$title" -S "fg=#d79921" -h 20 -w 80 "echo $message"
+                else
+                    sound=$(get_sound)
+                    notify-send -t 8000 "$title" "$message"
+                    if [[ "$sound" == "on" ]]; then
+                        beep -D 1500
+                    fi
+                fi
+            ;;
+            darwin*)
+                    if [[ "$sound" == "off" ]]; then
+                            osascript -e 'display notification "'"$message"'" with title "'"$title"'"'
+                    else
+                            osascript -e 'display notification "'"$message"'" with title "'"$title"'" sound name "'"$sound"'"'
+                    fi
+            ;;
+        esac
+    fi
 }
 
 clean_env() {
