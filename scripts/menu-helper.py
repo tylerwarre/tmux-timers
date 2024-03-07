@@ -23,6 +23,12 @@ def create_menu(title, pos_x, pos_y, options):
     subprocess.run(cmd)
 
 def create_timer_menu():
+    # get tmux window height
+    # result = subprocess.run(["/usr/local/bin/tmux", "display-message", "-p", "#{window_height}"], capture_output=True)
+    # result = result.stdout.rstrip()
+    # get tmux window width
+    # result = subprocess.run(["/usr/local/bin/tmux", "display-message", "-p", "#{window_width}"], capture_output=True)
+    # result = result.stdout.rstrip()
     timers = os.listdir(f"{os.path.dirname(os.path.realpath(__file__))}/../timers/")
     timers = sorted(timers, key=len)
     options = []
