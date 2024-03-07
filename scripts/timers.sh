@@ -73,7 +73,7 @@ send_notification() {
         case "$OSTYPE" in
             linux* | *bsd*)
                 if [[ $(uname -r) =~ "WSL" ]]; then
-                    tmux display-popup -T "$title" -S "fg=#d79921" -h 20 -w 80 "echo -n $message"
+                    "$CURRENT_DIR/display-helper.py" popup --title "${title}" --msg "${message}"
                 else
                     sound=$(get_sound)
                     notify-send -t 8000 "$title" "$message"
@@ -133,7 +133,7 @@ timer_cancel() {
     debug "$(date): Cancled timer" $DEBUG_FILE
     clean_env
     remove_file "$TIMER_DIR/iterations.txt"
-    send_notification "🕓 $TIMER_SELECTION" "Your Timer has been cancelled"
+    send_notification "🕓 $TIMER_SELECTION" "Your timer has been cancelled"
     if_inside_tmux && tmux refresh-client -S
     return 0
 }
@@ -171,22 +171,23 @@ pomodoro_status() {
     # Currently working
     elif [[ $status == "working" ]]; then
         debug "$(date): Currently working" $DEBUG_FILE
+
+        iterations=$(read_file "$TIMER_DIR/iterations.txt")
+        if [[ $iterations -eq -1 ]]; then
+            write_to_file "1" "$TIMER_DIR/iterations.txt"
+            iterations=1
+        fi
+
         # Check if we should go to a break
         if [[ $difference -ge "$(minutes_to_seconds "$timer_duration_minutes")" ]]; then
             # Update iterations
-            iterations=$(read_file "$TIMER_DIR/iterations.txt")
-            if [[ $iterations -eq -1 ]]; then
-                write_to_file "1" "$TIMER_DIR/iterations.txt"
-                iterations=1
-            else
-                iterations=$((iterations + 1))
-                write_to_file "$iterations" "$TIMER_DIR/iterations.txt"
-            fi
+            iterations=$((iterations + 1))
+            write_to_file "$iterations" "$TIMER_DIR/iterations.txt"
 
             # Long break
-            if [[ $iterations -ge $timer_sessions ]]; then
+            if [[ $iterations -gt $timer_sessions ]]; then
                 send_notification "🕑 $TIMER_SELECTION" "Take a long break"
-                write_to_file "0" "$TIMER_DIR/iterations.txt"
+                write_to_file "1" "$TIMER_DIR/iterations.txt"
                 timer_duration_secs=$(minutes_to_seconds "$timer_long_break_minutes")
                 timer_start "long_break" "$timer_long_break_minutes"
             # Short break
@@ -201,7 +202,7 @@ pomodoro_status() {
         else
             timer_duration_secs=$(minutes_to_seconds "$timer_duration_minutes")
             time_left_formatted=$(format_seconds $((timer_duration_secs - difference)))
-            status_line="${status_line}$timer_on $time_left_formatted"
+            status_line="${status_line}$timer_on ${iterations}/${timer_sessions} $time_left_formatted"
         fi
     # Currently taking a long break
     elif [[ $status == "long_break" ]]; then
