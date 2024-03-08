@@ -2,7 +2,6 @@
 # ______________________________________________________________| locals |__ ;
 TIMER_SELECTION=$(get_timer_selection)
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TIMER_DIR="/tmp/tmux-timer/$TIMER_SELECTION"
 TIMER_FILE="$TIMER_DIR/time.txt"
 TIMER_STATUS_FILE="$TIMER_DIR/status.txt"
 TIMER_MINS_FILE="$TIMER_DIR/user_mins.txt"
