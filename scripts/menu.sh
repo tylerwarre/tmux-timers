@@ -1,7 +1,6 @@
 #!/bin/bash
 # ______________________________________________________________| locals |__ ;
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TIMER_DIR="/tmp/tmux-timer/$TIMER_SELECTION"
 TIMER_FILE="$TIMER_DIR/time.txt"
 TIMER_STATUS_FILE="$TIMER_DIR/status.txt"
 TIMER_MINS_FILE="$TIMER_DIR/user_mins.txt"
@@ -69,7 +68,7 @@ timer_menu() {
     timer_menu_position=$(get_tmux_option @timer_menu_position "R")
     export timer_menu_position
 
-    "$CURRENT_DIR/menu-helper.py" "timers"
+    "$CURRENT_DIR/display-helper.py" "timers"
 }
 
 main() {
